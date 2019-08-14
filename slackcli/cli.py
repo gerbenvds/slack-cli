@@ -36,7 +36,7 @@ def run():
     parser = argparse.ArgumentParser(description="""Send, pipe, upload and
                                      receive Slack messages from the CLI""")
     parser.add_argument("-t", "--token",
-                        help="Explicitly specify Slack API token which will be saved to {}.".format(token.TOKEN_PATH))
+                        help="Explicitely specify Slack API token which will be saved to {}.".format(token.TOKEN_PATH))
     parser.add_argument("-T", "--team",
                         help="""Team domain to interact with. This is the name
                         that appears in the Slack url: https://xxx.slack.com.
@@ -60,6 +60,10 @@ def run():
         "-u", "--user",
         help="""Send message not as the current user, but as a bot with the
         specified user name"""
+    )
+    group_send.add_argument(
+        "-m", "--multiline", action="store_true",
+        help="""When reading from stdin, send a single message (i.e. read until EOF)"""
     )
     group_send.add_argument("messages", nargs="*",
                             help="""Messages to send (messages can also be sent
@@ -108,7 +112,7 @@ def run():
 
     # Pipe content
     if not args.messages:
-        pipe(args.dst, pre=args.pre, username=args.user)
+        pipe(args.dst, pre=args.pre, username=args.user, multiline=args.multiline)
         return 0
 
     # Send messages
@@ -142,12 +146,16 @@ def last_messages(sources, count):
 
 ######### Send
 
-def pipe(destination, pre=False, username=None):
+def pipe(destination, pre=False, username=None, multiline=False):
     destination_id = utils.get_destination_id(destination)
-    for line in sys.stdin:
-        line = line.strip()
-        if line:
-            slack.post_message(destination_id, line, pre=pre, username=username)
+    if multiline:
+        lines = sys.stdin.readlines()
+        slack.post_message(destination_id, ''.join(lines), pre=pre, username=username)
+    else:
+        for line in sys.stdin:
+            line = line.strip()
+            if line:
+                slack.post_message(destination_id, line, pre=pre, username=username)
 
 def run_command(destination, command, username=None):
     destination_id = utils.get_destination_id(destination)
